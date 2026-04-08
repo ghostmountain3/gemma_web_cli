@@ -1,0 +1,2 @@
+[console_scripts]
+gemma-web = gemma_web_cli.cli:main

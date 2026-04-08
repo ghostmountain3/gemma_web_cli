@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gemma-web-cli"
+version = "0.1.0"
+description = "Search-enabled local CLI assistant for Ollama models using DDGS, page reading, memory, and streaming responses."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "ghostmountain3" }
+]
+dependencies = [
+  "requests",
+  "ddgs",
+  "trafilatura",
+  "beautifulsoup4",
+  "lxml"
+]
+
+[project.scripts]
+gemma-web = "gemma_web_cli.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
