@@ -51,5 +51,5 @@ Local models like Gemma are great for private, offline-style workflows, but they
 ### Option 1: Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/gemma-web-cli.git
+git clone https://github.com/ghostmountain3/gemma-web-cli.git
 cd gemma-web-cli
