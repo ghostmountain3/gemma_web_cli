@@ -125,6 +125,68 @@ what changed in ollama recently
 based on what you read earlier, summarize the main point
 ```
 
+## Web Research Commands
+
+`gemma-web` also has non-interactive commands for local research pipelines. These use free/local Python libraries only: DDGS for search, `requests` for fetch, `trafilatura` when available for extraction, and BeautifulSoup as fallback. No paid APIs are required.
+
+Search returns structured search candidates:
+
+```powershell
+gemma-web search "local LLM agents" --json
+```
+
+Fetch downloads a text/html-style page with timeout, size limit, user-agent, binary-content rejection, and structured errors:
+
+```powershell
+gemma-web fetch "https://example.com" --json
+```
+
+Extract fetches and extracts readable page content:
+
+```powershell
+gemma-web extract "https://example.com" --json
+```
+
+Research runs search, dedupe/ranking, topic relevance filtering, fetch, extraction, deterministic source summaries, and a browsing-style synthesized answer:
+
+```powershell
+gemma-web research "what is trending in local LLM agents" --json
+gemma-web research "latest Ollama settings" --json --fetch-top 3 --no-cache
+gemma-web research "show top results for Ollama settings" --json --mode search_results
+```
+
+Research JSON includes:
+
+- `searches`: structured DDGS search results
+- `response_mode`: `research_answer` or `search_results`
+- `query_variants`: focused query expansions used for answer-style research
+- `sources`: fetched/extracted sources with summaries, key points, source type, relevance, credibility, snippet-only status, and errors
+- `answer_outline`: main findings, consensus, uncertainty, and implications
+- `synthesized_answer`: concise answer with key findings, interpretation, limitations, and sources
+- `limitations`: freshness, blocked-page, or extraction caveats
+
+Use `--mode research_answer` for a synthesized answer and `--mode search_results` for raw ranked candidates. `--mode auto` chooses from intent: natural questions, "research", "explain", "latest/current", and trend/news queries become answer-style research; explicit "links only", "top results", or "raw search" requests stay as search results.
+
+Trending/current queries such as "trending", "latest", "current", "popular", "viral", and "news" expand into a small number of focused variants and label forum/community sources clearly. Relevance filtering uses the full query, domain clues such as software/finance/health/government/entertainment, source type, and keyword overlap to downrank unrelated meanings.
+
+## Cache
+
+Research results and fetched/extracted artifacts are cached under `data/cache` by default. Configure with:
+
+```powershell
+$env:GEMMA_WEB_CACHE_DIR="data/cache"
+$env:GEMMA_WEB_CACHE_TTL_SECONDS="3600"
+```
+
+Cache commands:
+
+```powershell
+gemma-web cache status
+gemma-web cache clear
+```
+
+Use `--no-cache` on research to bypass cached research results.
+
 ## Changing the model
 
 The chat and embedding models can be changed with environment variables.
@@ -182,6 +244,12 @@ At a high level, the app does this:
 - The tool stores local memory in the `data/` folder
 - Saved memory is not meant to be committed to Git
 - Streaming may fall back to non-streaming if the connection is interrupted
+- Search results are candidates, not guaranteed facts
+- Topic filtering is heuristic and can miss subtle ambiguity
+- Some sites block scraping or return limited text
+- JavaScript-heavy pages may not extract well
+- Snippet-only answers are less reliable than fetched/extracted page content
+- PDFs and binary downloads are skipped by the lightweight fetcher
 
 ## Troubleshooting
 

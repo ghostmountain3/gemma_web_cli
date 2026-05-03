@@ -1,4 +1,5 @@
 import json
+import argparse
 import traceback
 import requests
 
@@ -8,6 +9,73 @@ from .router import route_request
 from .search import search_web
 from .reader import read_url
 from .memory import search_memory, save_page, ensure_data_files, rank_chunks_for_query
+from .reader import fetch as fetch_url, extract as extract_html
+from .research import cache_clear, cache_status, research
+
+
+def print_json(data: dict | list) -> None:
+    print(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+def run_noninteractive(argv: list[str]) -> bool:
+    parser = argparse.ArgumentParser(prog="gemma-web")
+    subparsers = parser.add_subparsers(dest="command")
+
+    search_parser = subparsers.add_parser("search")
+    search_parser.add_argument("query")
+    search_parser.add_argument("--json", action="store_true")
+    search_parser.add_argument("--limit", "--max-results", dest="max_results", type=int, default=5)
+
+    fetch_parser = subparsers.add_parser("fetch")
+    fetch_parser.add_argument("url")
+    fetch_parser.add_argument("--json", action="store_true")
+
+    extract_parser = subparsers.add_parser("extract")
+    extract_parser.add_argument("url")
+    extract_parser.add_argument("--json", action="store_true")
+    read_parser = subparsers.add_parser("read")
+    read_parser.add_argument("url")
+    read_parser.add_argument("--json", action="store_true")
+
+    research_parser = subparsers.add_parser("research")
+    research_parser.add_argument("query")
+    research_parser.add_argument("--json", action="store_true")
+    research_parser.add_argument("--limit", "--max-results", dest="max_results", type=int, default=5)
+    research_parser.add_argument("--fetch-top", type=int, default=3)
+    research_parser.add_argument("--mode", choices=["auto", "search_results", "research_answer"], default="auto")
+    research_parser.add_argument("--max-searches", type=int, default=4)
+    research_parser.add_argument("--no-cache", action="store_true")
+
+    cache_parser = subparsers.add_parser("cache")
+    cache_parser.add_argument("cache_command", choices=["status", "clear"])
+
+    if not argv:
+        return False
+    args = parser.parse_args(argv)
+    if args.command == "search":
+        from .search import search
+
+        result = search(args.query, max_results=args.max_results)
+        print_json(result) if args.json else print(result)
+        return True
+    if args.command == "fetch":
+        result = fetch_url(args.url)
+        print_json(result) if args.json else print(result.get("text") or result.get("error_message", ""))
+        return True
+    if args.command in {"extract", "read"}:
+        fetched = fetch_url(args.url)
+        result = extract_html(fetched.get("final_url") or args.url, fetched.get("html", "")) if fetched.get("success") else {"url": args.url, "extraction_success": False, "error_message": fetched.get("error_message", "fetch failed")}
+        print_json(result) if args.json else print(result.get("main_text") or result.get("error_message", ""))
+        return True
+    if args.command == "research":
+        result = research(args.query, max_results=args.max_results, fetch_top=args.fetch_top, no_cache=args.no_cache, response_mode=args.mode, max_searches=args.max_searches)
+        text = result.get("synthesized_answer") or "\n".join(result.get("answer_outline", {}).get("main_findings", []))
+        print_json(result) if args.json else print(text)
+        return True
+    if args.command == "cache":
+        print_json(cache_status() if args.cache_command == "status" else {"cleared": cache_clear()})
+        return True
+    return False
 
 
 def chat_with_ollama(messages):
@@ -78,7 +146,11 @@ def print_status(text: str):
         print(text)
 
 
-def main():
+def main(argv=None):
+    import sys
+
+    if run_noninteractive(sys.argv[1:] if argv is None else argv):
+        return
     ensure_data_files()
 
     history = [{"role": "system", "content": SYSTEM_PROMPT}]
